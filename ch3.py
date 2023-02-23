@@ -15,6 +15,9 @@ Notes:
 (Single Digits have a Leading Zero for board consistency, do not include leading zeros on input)
 InputMove Notation #CurrentLocation-#DesiredLocation (Ex. 2-7)
 
+Return Notes:
+1: Code FSM according to Notebook (Consider Best Practices Research)
+
 
 Thoughts and Questions:
 -Where do we process how many players are going? How does this effect the FSM?
@@ -60,7 +63,6 @@ class piece():
     def change_location(self, new_location):
         #Used to register a move for a piece
         self.location = new_location
-        return None
 
 class regular(piece):
     def __init__(self, args):
@@ -88,7 +90,7 @@ class Board_Util:
         '''
         wt/bt is array of white/black team pieces
         ps is dictionary of every piece object and its board location (position set)
-        ms is dictionary of every possible move
+        ms is dictionary of every possible move (move set)
         '''
         self.wt = []
         self.bt = []
@@ -206,7 +208,8 @@ class Board_Util:
 
 
     def load_board(self):
-        with open("./Proj/checkersData.csv", "r") as cdat:
+        """Loads Checkers Pieces from CSV into Game"""
+        with open(r"C:\Users\catch\BYU Coding\Proj\Ch3_Package\checkersData.csv", "r") as cdat:
             cdat.readline()
             for data in cdat:
                 piecedat = data.split(',')
@@ -217,7 +220,7 @@ class Board_Util:
         return None
 
     def update_locations(self):
-        '''Update all piece locations in ms dictionary'''
+        """Update all piece locations in ms dictionary"""
         for piece in self.wt:
             self.ps.update({piece.get_location(): piece})
         for piece in self.bt:
@@ -226,7 +229,8 @@ class Board_Util:
 
     def update_moveList(self, team):
         """Pass in what team you want to move for, restricts movelist to your team
-        Note: currently only displays 1 move w/ no blocks"""
+        Note: currently only displays 1 move w/ no blocks
+        Addition: Return "Win" if one of the teams can't move???"""
         if team == "W":
             for piece in self.wt:
                 #Check for regular pieces first (South)
@@ -334,11 +338,6 @@ class Board_Util:
                f"| 29:{sl[29]} |      | 30:{sl[30]} |      | 31:{sl[31]} |      | 32:{sl[32]} |      |\n ")
         return None
 
-    #Create Black Pieces
-    #Should this even be here?
-    # def make_king(self, piece):
-        # pass
-    # self.___ = king()
 
 #This class needs to check if an individual move is valid
 #Also needs to congregate all valid moves
@@ -349,62 +348,94 @@ class Checkers_FSM():
     """
     def __init__(self, Board_Util):
         self.Board = Board_Util
-        self.cs = "cs"
-        self.ns = "ns"
-        self.ERR = "ERR"
+        self.cs = "init"
         self.run_FSM()
 
+#Would Cases be better here?
 #We need a state to clear the console and print the new board after validation (Last State)
 #We need a new state or two for the computer player/2nd player
 #Idle state should display the play options
-    def run_FSM(self):
-        #Change this to a try except block???
-        self.cs = "Idle"
-        #Even Turn = White, Odd Turn = Black
-        turn = 0
-        while (self.cs != "ERR"):
-            try:
-                if(self.cs == "Idle"):
-            #Show the user all the valid moves and wait for input (First state)
-                    self.Board.ms.clear()
+    def run_FSM(self, state="init"):
+        try:
+            match state:
+                case "init":
+                    print("Enter 1 for Single Player, or 2 for Two Player")
+                    play_style = int(input())
+                    if (play_style == 1):
+                        self.cs = "solo"
+                    elif (play_style == 2):
+                        self.cs = "p1"
                     self.Board.update_locations()
-                    self.Board.show_board()
-                    if (turn%2) == 0:
-                        self.Board.update_moveList("W")
-                        print("White's Turn! Move List: ")
-                    else: 
-                        self.Board.update_moveList("B")
-                        print("Black's Turn! Move List: ")
-                    turn += 1
-                    # print("Peice List: ")
-                    # print(self.Board.ps)
-                    # print("Move List: ")
-                    print(self.Board.ms)
-                    print("Please type a move via this format: PieceCurrentPosition,DesiredLocation")
-                    self.ns = "Mve"
-                # else: 
-                #     self.ns = "Idle"
+                    self.Board.update_moveList("B")
 
-                if(self.cs == "Mve"):
-                    curPos,move = map(int, input().split(","))
+                case "p1":
+                    # Print Board
+                    self.Board.show_board()
+
+                    # Take Input
+                    print("Black's Turn! Move List: ")
+                    print(self.Board.ms)
+                    print(
+                        "Please type a move via this format: PieceCurrentPosition,DesiredLocation")
+                    curPos, move = map(int, input().split(","))
+
+                    # Execute Move
                     piece_Obj = self.Board.ps.get(curPos)
                     piece_Obj.change_location(move)
                     self.Board.ps.pop(curPos)
                     print(f"{piece_Obj} moved from {curPos} to {move}")
-                    self.ns = "Idle"
-                # else: 
-                #     self.ns = "Mve"
 
-                self.cs = self.ns
+                    # Reset and Check Win (Other Player Can't Move)
+                    self.Board.ms.clear()
+                    self.Board.update_locations()
+                    self.Board.update_moveList("W")
+                    if (len(self.Board.ms) == 0):
+                            self.cs = "win"
+                    else:
+                        self.cs = "p2"
 
-            except Exception as e:
-                self.cs = "ERR"
-                print("Entered Error State, Game Terminating")
-                print(e)
-                exit()
-        #I need to put something here to catch errors
+                case "p2":
+                    self.Board.show_board()
+
+                    # Take Input
+                    print("White's Turn! Move List: ")
+                    print(self.Board.ms)
+                    print(
+                        "Please type a move via this format: PieceCurrentPosition,DesiredLocation")
+                    curPos, move = map(int, input().split(","))
+
+                    # Execute Move
+                    piece_Obj = self.Board.ps.get(curPos)
+                    piece_Obj.change_location(move)
+                    self.Board.ps.pop(curPos)
+                    print(f"{piece_Obj} moved from {curPos} to {move}")
+
+                    # Reset and Check Win (Other Player Can't Move)
+                    self.Board.ms.clear()
+                    self.Board.update_locations()
+                    self.Board.update_moveList("B")
+                    if (len(self.Board.ms) == 0):
+                            self.cs = "win"
+                    else:
+                        self.cs = "p1"
+
+                case "solo":
+                    pass
+                case "comp":
+                    pass
+                case "win":
+                    self.Board.show_board()
+                    print("The game is over.")
+                    exit()
+
+            self.run_FSM(self.cs)
+
+        except Exception as e:
+            self.cs = "ERR"
+            print("Entered Error State, Game Terminating")
+            print(e)
+            exit()
 
 if __name__ == "__main__":
     a = Board_Util()
     b = Checkers_FSM(a)
-
