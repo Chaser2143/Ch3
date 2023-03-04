@@ -16,12 +16,8 @@ Notes:
 InputMove Notation #CurrentLocation-#DesiredLocation (Ex. 2-7)
 
 Return Notes:
-1: Code FSM according to Notebook (Consider Best Practices Research)
+1: Rework movement and take system
 
-
-Thoughts and Questions:
--Where do we process how many players are going? How does this effect the FSM?
--Movement System will need global directions
 
 Next Steps:
 -Deliver functioning code. Get a basic state machine working and check that this simple version is going.
@@ -351,10 +347,6 @@ class Checkers_FSM():
         self.cs = "init"
         self.run_FSM()
 
-#Would Cases be better here?
-#We need a state to clear the console and print the new board after validation (Last State)
-#We need a new state or two for the computer player/2nd player
-#Idle state should display the play options
     def run_FSM(self, state="init"):
         try:
             match state:
