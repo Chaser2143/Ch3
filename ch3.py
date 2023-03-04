@@ -16,9 +16,13 @@ Notes:
 InputMove Notation #CurrentLocation-#DesiredLocation (Ex. 2-7)
 
 Return Notes:
-1: Rework movement and take system
-- Do I need to increase the recursion limit?
-2: Add Function to actually execute moves
+1: Add Function to actually execute jump moves!
+- Also add loop to continue taking input if further jumps for that peice exist
+
+
+3. Check Position is pretty inefficient, recreating a list every time i want to check a space, also because it iterates that list linearly for every single piece. 
+How can I reduce this? Or does that not really matter?
+Pythonic way of checking multiple conditions? Clean up the code a bit
 
 
 Next Steps:
@@ -83,12 +87,12 @@ class Board_Util:
     def __init__(self):
         '''
         wt/bt is array of white/black team pieces
-        ps is dictionary of every piece object and its board location (position set)
+        ps is dictionary of every piece object's board location and its object
         ms is dictionary of every possible move (move set)
         '''
         self.wt = []
         self.bt = []
-        self.ms = []
+        self.ms = {}
         self.ps = {}
         self.load_board()
 
@@ -224,139 +228,111 @@ class Board_Util:
 
     def update_moveList(self, team):
         """Pass in what team you want to move for, restricts movelist to your team
-        Note: Better to do moveflow w/ arrays rather than math because board is inconsistent
-        Also updates single moves for board as recursive is unncessary in this case
-        Today: Implement Recursive Move Search"""
+        Add support for kings somehow"""
         match team:
             case "W":
-                #Update Movelist for Single moves, then call recursive search for to update for jumps
-                pass
+                for i in self.wt:
+                    self.search_steps("North", i.get_location())
+                    self.search_jumps("North", i.get_location())
             case "B":
-                #Update Movelist for Single moves, then call recursive search for to update for jumps
-                pass
+                for i in self.bt:
+                    self.search_steps("South", i.get_location())
+                    self.search_jumps("South", i.get_location())
             case default:
                 print("Error, Entered Default in function update_moveList. Exiting Game")
                 exit()
 
+    def search_steps(self, direction, position):
+        """Checks and appends individual valid steps per given position"""
+        temp_container = []
+        match direction:
+            case "North":
+                for i in self.North_moveFlow.get(position):
+                    if self.check_position(i):
+                        temp_container.append(i)
+                if temp_container != [None] and len(temp_container) != 0:
+                    self.ms.update({position:temp_container})
+                pass
+            case "South":
+                for i in self.South_moveFlow.get(position):
+                    if self.check_position(i):
+                        temp_container.append(i)
+                if temp_container != [None] and len(temp_container) != 0:
+                    self.ms.update({position:temp_container})
+            case "King":
+                pass
 
-
-    def search_moves(self, direction, position):
+    def search_jumps(self, direction, position):
         """
-        :::Helper Function to Recursively Update MoveList - ONLY used for Jumps, No single Moves:::
+        :::Helper Function to Update MoveList - ONLY used for a single Jump:::
         Direction is North, South or King
         Position is Current Starting Number
         Jumps is if a piece has executed a jump or not (single moves is not an option)
+
+        CONDITIONS:
+        1. You must have something to jump
+        2. The space to jump to must exist and be vacant
+        3. You must be jumping an object from a different team
+
+
+        NOTE: We still have some "None" Sneaking Around in here
         """
+        temp_container = []
         match direction:
             case "North":
-                """
-                Base Cases
-                - Jump is blocked
-                - No More Jumps Locations Available (Reached end of board)
-                """
-                L_land = self.left_take.get(position)[1]
-                R_land = self.right_take.get(position)[1]
-                if(L_land == None):#Jump is Blocked on Left
-                    pass
-                elif(R_land != None):
-                    pass
+                #Kept check to see if its in board to speed up computation
+                if self.left_take.get(position) != None:  # Check the take exists
+                    L_land = self.left_take.get(position)[1] #Check Left Land Spot
+                    L_taken = self.left_take.get(position)[0]
+                    if self.getTeam_byPos(L_taken) != None:
+                        if(L_land != None and self.check_position(L_land) and self.getTeam_byPos(L_taken) != 'W' and self.getTeam_byPos(L_taken) != None): #Validate and add left Take
+                            temp_container.append([position, taken, L_land])
 
-                """
-                Recursive Case
-                - Jump is available
-                """
-                pass
+                if self.right_take.get(position) != None:
+                    R_land = self.right_take.get(position)[1] #Check Right Land Spot
+                    R_taken = self.right_take.get(position)[0]
+                    if self.getTeam_byPos(R_taken) != None:
+                        if(R_land != None and self.check_position(R_land) and self.getTeam_byPos(R_taken) != 'W' and self.getTeam_byPos(R_taken) != None): #Validate and add right take
+                            temp_container.append([position, taken, R_land])
+
+                if len(temp_container) != 0:
+                    temp_container.append(self.ms.get(position)) #Save Current Moves
+                    self.ms.update({position : temp_container})
             case "South":
-                pass
+                L_land = position + 9 
+                R_land = position + 7
+                if self.left_take.get(L_land) != None:  # Check the take exists
+                    if (0 <= L_land <= 32 and self.check_position(L_land)):  # Validate and add left Take
+                        taken = self.left_take.get(L_land)[0]
+                        if self.getTeam_byPos(taken) != 'B' and self.getTeam_byPos(taken) != None:
+                            temp_container.append([position, taken, L_land])
+
+                if self.right_take.get(R_land) != None: #Check that the take even exists
+                    if (0 <= R_land <= 32 and self.check_position(R_land)):  # Validate and add right take
+                        taken = self.right_take.get(R_land)[0]
+                        if self.getTeam_byPos(taken) != 'B' and self.getTeam_byPos(taken) != None:
+                            temp_container.append([position, taken, R_land])
+
+                if len(temp_container) != 0:
+                    temp_container.append(self.ms.get(position)) #Save Current Moves
+                    self.ms.update({position : temp_container})
             case "King":
                 pass
         return None
+    
+    def check_position(self, position):
+        """Checks an individual position, Returns TRUE if empty and FALSE if taken"""
+        if position in self.ps:
+            return False
+        return True
+    
+    def getTeam_byPos(self, position):
+        peice = self.ps.get(position)
+        if peice != None:
+            return peice.get_team()
+        else:
+            return None
 
-
-
-        # if team == "W":
-        #     for piece in self.wt:
-        #         #Check for regular pieces first (South)
-        #         if piece.get_type() == "R":
-        #             #Get options based on move flow
-        #             Move_Flow = self.North_moveFlow.get(piece.get_location())
-        #             for i in Move_Flow:
-        #                 #Move_Flow is a list of available spaces from the moveflow dictionary
-        #                 #Check each option's availability    
-        #                 Move_Option = self.ps.get(i)
-        #                 #Nothing is there, move is available
-        #                 if Move_Option == None:
-        #                     self.ms.append([piece.get_location(),i])
-        #                 else:
-        #                     for j in self.left_take:
-        #                         #diagonal left take
-        #                         if i == j[0]:
-        #                             take = j[1]
-        #                             stop = j[2]
-        #                             #ps gives piece_location:piece
-        #                             try:
-        #                                 if self.ps.get(j[1]).get_team() == "B":
-        #                                     self.ms.append([i,j[2]])
-        #                             except:
-        #                                 pass
-        #                     for j in self.right_take:
-        #                         #diagonal right take
-        #                         if i == j[0]:
-        #                             take = j[1]
-        #                             stop = j[2]
-        #                             #ps gives piece_location:piece
-        #                             try:
-        #                                 if self.ps.get(j[1]).get_team() == "B":
-        #                                     self.ms.append([i,j[2]])
-        #                             except:
-        #                                 pass
-        # if team == "B":
-        #     for piece in self.bt:
-        #         #Check for regular pieces first (South)
-        #         if piece.get_type() == "R":
-        #             #Get options based on move flow
-        #             Move_Flow = self.South_moveFlow.get(piece.get_location())
-        #             for i in Move_Flow:
-        #                 #Move_Flow is a list of available spaces from the moveflow dictionary
-        #                 #Check each option's availability    
-        #                 Move_Option = self.ps.get(i)
-        #                 #Nothing is there, move is available
-        #                 if Move_Option == None:
-        #                     self.ms.append([piece.get_location(),i])
-        #                 else:
-        #                     for j in self.right_take:
-        #                         #diagonal left take
-        #                         if i == j[2]:
-        #                             take = j[1]
-        #                             stop = j[0]
-        #                             #ps gives piece_location:piece
-        #                             try:
-        #                                 if self.ps.get(j[1]).get_team() == "W":
-        #                                     self.ms.append([i,j[0]])
-        #                             except:
-        #                                 pass
-        #                     for j in self.left_take:
-        #                         #diagonal right take
-        #                         if i == j[2]:
-        #                             take = j[1]
-        #                             stop = j[0]
-        #                             #ps gives piece_location:piece
-        #                             try:
-        #                                 if self.ps.get(j[1]).get_team() == "W":
-        #                                     self.ms.append([i,j[0]])
-        #                             except:
-        #                                 pass
-        return None
-
-
-    def check_move(self, piece_obj, location_singular, depth=0):
-        """Possibly Obsolete!!!
-        
-        Recursive function, call 1x per original location
-        Note: Diagonal Left Take going north is a difference of 9
-        Diagonal Right Take going north is a difference of 7"""
-
-        return None
 
     def show_board(self):
         """Clears the terminal and displays the current board"""
@@ -380,6 +356,11 @@ class Board_Util:
                f"|      | 25:{sl[25]} |      | 26:{sl[26]} |      | 27:{sl[27]} |      | 28:{sl[28]} |\n"
                f"| 29:{sl[29]} |      | 30:{sl[30]} |      | 31:{sl[31]} |      | 32:{sl[32]} |      |\n ")
         return None
+    
+    def print_moveSet(self):
+        # for i in self.ms:
+        #     print(i)
+        print(self.ms)
 
 
 #This class needs to check if an individual move is valid
@@ -413,7 +394,7 @@ class Checkers_FSM():
 
                     # Take Input
                     print("Black's Turn! Move List: ")
-                    print(self.Board.ms)
+                    self.Board.print_moveSet()
                     print(
                         "Please type a move via this format: PieceCurrentPosition,DesiredLocation")
                     curPos, move = map(int, input().split(","))
@@ -427,6 +408,7 @@ class Checkers_FSM():
                     # Reset and Check Win (Other Player Can't Move)
                     self.Board.ms.clear()
                     self.Board.update_locations()
+                    #Maybe add a while loop here to continue for extra jumps
                     self.Board.update_moveList("W")
                     if (len(self.Board.ms) == 0):
                             self.cs = "win"
@@ -438,7 +420,7 @@ class Checkers_FSM():
 
                     # Take Input
                     print("White's Turn! Move List: ")
-                    print(self.Board.ms)
+                    self.Board.print_moveSet()
                     print(
                         "Please type a move via this format: PieceCurrentPosition,DesiredLocation")
                     curPos, move = map(int, input().split(","))
