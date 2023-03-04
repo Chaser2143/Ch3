@@ -17,19 +17,17 @@ InputMove Notation #CurrentLocation-#DesiredLocation (Ex. 2-7)
 
 Return Notes:
 1: Rework movement and take system
+- Do I need to increase the recursion limit?
+2: Add Function to actually execute moves
 
 
 Next Steps:
--Deliver functioning code. Get a basic state machine working and check that this simple version is going.
 -Can I make this into a .exe eventually?
--Ive got some invalid L/R takes that correspond to the wrong team displaying
--The board isn't very readable... Super proud of the foundation though, that is very clever.
 
 Ideas:
-- Use Recursion to get a full moveset. Ie display moves as their entire chain. If their going to be king-ed, stop but give them another turn?
+- Use Recursion to get a full moveset. Ie display moves as their entire chain. If their going to be king-ed, stop.
 
 Notes:
--If I am only giving valid moves, I really don't see a reason to re-validate the move, only the input
 -If you have a jump available, you must take it (and all the way), but if you have multiple jumps available, you can choose which one to take
 -For the movement system, I can definitely find a better way than checking every single case, although they are all listed
     - For example, I could use sets to single out a characteristic (vacancies, captured spots) and compare it with the current board state
@@ -94,6 +92,7 @@ class Board_Util:
         self.ps = {}
         self.load_board()
 
+        #Defined as (Key: Initial Position) : Value (All End Locations from Key)
         self.South_moveFlow = {
             1:[5, 6], 
             2:[6, 7],
@@ -125,6 +124,7 @@ class Board_Util:
             28:[32]
         }
 
+        #Defined as (Key: Initial Position) : Value (All End Locations from Key)
         self.North_moveFlow = {
             32:[27,28],
             31:[26,27],
@@ -156,52 +156,51 @@ class Board_Util:
             5:[1]
         }
 
-        #Defined as left take fron W, [Start, Take, Stop]
-        #Defined as right take from B [Stop, Take, Start]
-        self.left_take = [
-            [30,25,21],
-            [22,17,13],
-            [14,9,5],
-            [26,22,17],
-            [18,14,9],
-            [10,6,1],
-            [31,26,22],
-            [23,18,14],
-            [15,10,6],
-            [27,23,18],
-            [19,15,10],
-            [11,7,2],
-            [32,27,23],
-            [24,19,15],
-            [16,11,7],
-            [28,24,19],
-            [20,16,11],
-            [12,8,3]
-        ]
+        #Defined as left take going North, [Start, Take, Stop]
+        #Defined as right take going South [Stop, Take, Start]
+        self.left_take = {
+            30:[25,21],
+            22:[17,13],
+            14:[9,5],
+            26:[22,17],
+            18:[14,9],
+            10:[6,1],
+            31:[26,22],
+            23:[18,14],
+            15:[10,6],
+            27:[23,18],
+            19:[15,10],
+            11:[7,2],
+            32:[27,23],
+            24:[19,15],
+            16:[11,7],
+            28:[24,19],
+            20:[16,11],
+            12:[8,3]
+        }
 
-        #Defined as right take from W [Start, Take, Stop]
-        #Defined as left take from B [Stop, Take, Start]
-        self.right_take = [
-            [29,25,22],
-            [21,17,14],
-            [13,9,6],
-            [25,22,18],
-            [17,14,10],
-            [9,6,2],
-            [30,26,23],
-            [22,18,15],
-            [14,10,7],
-            [26,23,19],
-            [18,15,11],
-            [10,7,3],
-            [31,27,24],
-            [23,19,16],
-            [15,11,8],
-            [27,24,20],
-            [19,16,12],
-            [11,8,4]
-        ]
-
+        #Defined as right take going North [Start, Take, Stop]
+        #Defined as left take going South [Stop, Take, Start]
+        self.right_take = {
+            29:[25,22],
+            21:[17,14],
+            13:[9,6],
+            25:[22,18],
+            17:[14,10],
+            9:[6,2],
+            30:[26,23],
+            22:[18,15],
+            14:[10,7],
+            26:[23,19],
+            18:[15,11],
+            10:[7,3],
+            31:[27,24],
+            23:[19,16],
+            15:[11,8],
+            27:[24,20],
+            19:[16,12],
+            11:[8,4]
+        }
 
     def load_board(self):
         """Loads Checkers Pieces from CSV into Game"""
@@ -225,80 +224,128 @@ class Board_Util:
 
     def update_moveList(self, team):
         """Pass in what team you want to move for, restricts movelist to your team
-        Note: currently only displays 1 move w/ no blocks
-        Addition: Return "Win" if one of the teams can't move???"""
-        if team == "W":
-            for piece in self.wt:
-                #Check for regular pieces first (South)
-                if piece.get_type() == "R":
-                    #Get options based on move flow
-                    Move_Flow = self.North_moveFlow.get(piece.get_location())
-                    for i in Move_Flow:
-                        #Move_Flow is a list of available spaces from the moveflow dictionary
-                        #Check each option's availability    
-                        Move_Option = self.ps.get(i)
-                        #Nothing is there, move is available
-                        if Move_Option == None:
-                            self.ms.append([piece.get_location(),i])
-                        else:
-                            for j in self.left_take:
-                                #diagonal left take
-                                if i == j[0]:
-                                    take = j[1]
-                                    stop = j[2]
-                                    #ps gives piece_location:piece
-                                    try:
-                                        if self.ps.get(j[1]).get_team() == "B":
-                                            self.ms.append([i,j[2]])
-                                    except:
-                                        pass
-                            for j in self.right_take:
-                                #diagonal right take
-                                if i == j[0]:
-                                    take = j[1]
-                                    stop = j[2]
-                                    #ps gives piece_location:piece
-                                    try:
-                                        if self.ps.get(j[1]).get_team() == "B":
-                                            self.ms.append([i,j[2]])
-                                    except:
-                                        pass
-        if team == "B":
-            for piece in self.bt:
-                #Check for regular pieces first (South)
-                if piece.get_type() == "R":
-                    #Get options based on move flow
-                    Move_Flow = self.South_moveFlow.get(piece.get_location())
-                    for i in Move_Flow:
-                        #Move_Flow is a list of available spaces from the moveflow dictionary
-                        #Check each option's availability    
-                        Move_Option = self.ps.get(i)
-                        #Nothing is there, move is available
-                        if Move_Option == None:
-                            self.ms.append([piece.get_location(),i])
-                        else:
-                            for j in self.right_take:
-                                #diagonal left take
-                                if i == j[2]:
-                                    take = j[1]
-                                    stop = j[0]
-                                    #ps gives piece_location:piece
-                                    try:
-                                        if self.ps.get(j[1]).get_team() == "W":
-                                            self.ms.append([i,j[0]])
-                                    except:
-                                        pass
-                            for j in self.left_take:
-                                #diagonal right take
-                                if i == j[2]:
-                                    take = j[1]
-                                    stop = j[0]
-                                    #ps gives piece_location:piece
-                                    try:
-                                        if self.ps.get(j[1]).get_team() == "W":
-                                            self.ms.append([i,j[0]])
-                                    except:
-                                        pass
+        Note: Better to do moveflow w/ arrays rather than math because board is inconsistent
+        Also updates single moves for board as recursive is unncessary in this case
+        Today: Implement Recursive Move Search"""
+        match team:
+            case "W":
+                #Update Movelist for Single moves, then call recursive search for to update for jumps
+                pass
+            case "B":
+                #Update Movelist for Single moves, then call recursive search for to update for jumps
+                pass
+            case default:
+                print("Error, Entered Default in function update_moveList. Exiting Game")
+                exit()
+
+
+
+    def search_moves(self, direction, position):
+        """
+        :::Helper Function to Recursively Update MoveList - ONLY used for Jumps, No single Moves:::
+        Direction is North, South or King
+        Position is Current Starting Number
+        Jumps is if a piece has executed a jump or not (single moves is not an option)
+        """
+        match direction:
+            case "North":
+                """
+                Base Cases
+                - Jump is blocked
+                - No More Jumps Locations Available (Reached end of board)
+                """
+                L_land = self.left_take.get(position)[1]
+                R_land = self.right_take.get(position)[1]
+                if(L_land == None):#Jump is Blocked on Left
+                    pass
+                elif(R_land != None):
+                    pass
+
+                """
+                Recursive Case
+                - Jump is available
+                """
+                pass
+            case "South":
+                pass
+            case "King":
+                pass
+        return None
+
+
+
+        # if team == "W":
+        #     for piece in self.wt:
+        #         #Check for regular pieces first (South)
+        #         if piece.get_type() == "R":
+        #             #Get options based on move flow
+        #             Move_Flow = self.North_moveFlow.get(piece.get_location())
+        #             for i in Move_Flow:
+        #                 #Move_Flow is a list of available spaces from the moveflow dictionary
+        #                 #Check each option's availability    
+        #                 Move_Option = self.ps.get(i)
+        #                 #Nothing is there, move is available
+        #                 if Move_Option == None:
+        #                     self.ms.append([piece.get_location(),i])
+        #                 else:
+        #                     for j in self.left_take:
+        #                         #diagonal left take
+        #                         if i == j[0]:
+        #                             take = j[1]
+        #                             stop = j[2]
+        #                             #ps gives piece_location:piece
+        #                             try:
+        #                                 if self.ps.get(j[1]).get_team() == "B":
+        #                                     self.ms.append([i,j[2]])
+        #                             except:
+        #                                 pass
+        #                     for j in self.right_take:
+        #                         #diagonal right take
+        #                         if i == j[0]:
+        #                             take = j[1]
+        #                             stop = j[2]
+        #                             #ps gives piece_location:piece
+        #                             try:
+        #                                 if self.ps.get(j[1]).get_team() == "B":
+        #                                     self.ms.append([i,j[2]])
+        #                             except:
+        #                                 pass
+        # if team == "B":
+        #     for piece in self.bt:
+        #         #Check for regular pieces first (South)
+        #         if piece.get_type() == "R":
+        #             #Get options based on move flow
+        #             Move_Flow = self.South_moveFlow.get(piece.get_location())
+        #             for i in Move_Flow:
+        #                 #Move_Flow is a list of available spaces from the moveflow dictionary
+        #                 #Check each option's availability    
+        #                 Move_Option = self.ps.get(i)
+        #                 #Nothing is there, move is available
+        #                 if Move_Option == None:
+        #                     self.ms.append([piece.get_location(),i])
+        #                 else:
+        #                     for j in self.right_take:
+        #                         #diagonal left take
+        #                         if i == j[2]:
+        #                             take = j[1]
+        #                             stop = j[0]
+        #                             #ps gives piece_location:piece
+        #                             try:
+        #                                 if self.ps.get(j[1]).get_team() == "W":
+        #                                     self.ms.append([i,j[0]])
+        #                             except:
+        #                                 pass
+        #                     for j in self.left_take:
+        #                         #diagonal right take
+        #                         if i == j[2]:
+        #                             take = j[1]
+        #                             stop = j[0]
+        #                             #ps gives piece_location:piece
+        #                             try:
+        #                                 if self.ps.get(j[1]).get_team() == "W":
+        #                                     self.ms.append([i,j[0]])
+        #                             except:
+        #                                 pass
         return None
 
 
