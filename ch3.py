@@ -18,6 +18,8 @@ InputMove Notation #CurrentLocation-#DesiredLocation (Ex. 2-7)
 Return Notes:
 1: Add Function to actually execute jump moves!
 - Also add loop to continue taking input if further jumps for that peice exist
+    - In this loop I need to only check from the landing position
+- How do I validate moves?
 
 
 3. Check Position is pretty inefficient, recreating a list every time i want to check a space, also because it iterates that list linearly for every single piece. 
